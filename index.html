@@ -1136,16 +1136,16 @@ async function hubHashPasskey(str) {
 var HUB_PASSKEY_KEY = 'combined-hub:passkeyHash';
 async function hubGetPasskeyHash() {
   try {
-    var r = await window.storage.get(HUB_PASSKEY_KEY, false);
+    var r = await window.googleStorage.get(HUB_PASSKEY_KEY, false);
     if (r && r.value) return JSON.parse(r.value).hash || null;
   } catch (e) {}
   return null;
 }
 async function hubSetPasskeyHash(hash) {
   if (hash === null) {
-    try { await window.storage.delete(HUB_PASSKEY_KEY, false); } catch (e) {}
+    try { await window.googleStorage.delete(HUB_PASSKEY_KEY, false); } catch (e) {}
   } else {
-    await window.storage.set(HUB_PASSKEY_KEY, JSON.stringify({ hash: hash }), false);
+    await window.googleStorage.set(HUB_PASSKEY_KEY, JSON.stringify({ hash: hash }), false);
   }
 }
 
@@ -1174,7 +1174,7 @@ async function hubBoot() {
 hubBoot();
 
 document.getElementById('hubPasskeyLink').addEventListener('click', async function() {
-  if (!window.storage) { hubAlert('Cloud storage is not available right now.'); return; }
+  if (!window.googleStorage) { hubAlert('Cloud storage is not available right now.'); return; }
   var existingHash = await hubGetPasskeyHash();
   if (existingHash) {
     var current = await hubPrompt('To confirm: enter the current main page passkey', 'password');
@@ -1224,20 +1224,20 @@ var hubTitleEl = document.getElementById('hubTitle');
 var hubSubEl = document.getElementById('hubSub');
 var hubSaveTimer = null;
 function saveHubText() {
-  if (!window.storage) return;
+  if (!window.googleStorage) return;
   if (hubSaveTimer) clearTimeout(hubSaveTimer);
   hubSaveTimer = setTimeout(function() {
-    window.storage.set(HUB_TITLE_KEY, hubTitleEl.textContent, false).catch(function() {});
-    window.storage.set(HUB_SUB_KEY, hubSubEl.textContent, false).catch(function() {});
+    window.googleStorage.set(HUB_TITLE_KEY, hubTitleEl.textContent, false).catch(function() {});
+    window.googleStorage.set(HUB_SUB_KEY, hubSubEl.textContent, false).catch(function() {});
   }, 500);
 }
 hubTitleEl.addEventListener('input', saveHubText);
 hubSubEl.addEventListener('input', saveHubText);
-if (window.storage) {
-  window.storage.get(HUB_TITLE_KEY, false).then(function(r) {
+if (window.googleStorage) {
+  window.googleStorage.get(HUB_TITLE_KEY, false).then(function(r) {
     if (r && r.value) { hubTitleEl.textContent = r.value; document.getElementById('hubPageTitle').textContent = r.value; }
   }).catch(function() {});
-  window.storage.get(HUB_SUB_KEY, false).then(function(r) {
+  window.googleStorage.get(HUB_SUB_KEY, false).then(function(r) {
     if (r && r.value) hubSubEl.textContent = r.value;
   }).catch(function() {});
 }
@@ -1547,7 +1547,7 @@ async function hashPasskey(str) {
 
 async function getStoredPasskeyHash() {
   try {
-    const result = await window.storage.get(PASSKEY_KEY, false);
+    const result = await window.googleStorage.get(PASSKEY_KEY, false);
     if (result && result.value) {
       const data = JSON.parse(result.value);
       return data.hash || null;
@@ -1560,9 +1560,9 @@ async function getStoredPasskeyHash() {
 
 async function setStoredPasskeyHash(hash) {
   if (hash === null) {
-    try { await window.storage.delete(PASSKEY_KEY, false); } catch (err) { /* already absent */ }
+    try { await window.googleStorage.delete(PASSKEY_KEY, false); } catch (err) { /* already absent */ }
   } else {
-    await window.storage.set(PASSKEY_KEY, JSON.stringify({ hash }), false);
+    await window.googleStorage.set(PASSKEY_KEY, JSON.stringify({ hash }), false);
   }
 }
 
@@ -1608,7 +1608,7 @@ function setSyncStatus(mode) {
 
 async function loadSettings() {
   try {
-    const result = await window.storage.get(SETTINGS_KEY, false);
+    const result = await window.googleStorage.get(SETTINGS_KEY, false);
     if (result && result.value) {
       const s = JSON.parse(result.value);
       if (typeof s.cloudSyncEnabled === 'boolean') cloudSyncEnabled = s.cloudSyncEnabled;
@@ -1624,7 +1624,7 @@ async function loadSettings() {
 
 async function saveSettings() {
   try {
-    await window.storage.set(SETTINGS_KEY, JSON.stringify({ cloudSyncEnabled, lang: LANG }), false);
+    await window.googleStorage.set(SETTINGS_KEY, JSON.stringify({ cloudSyncEnabled, lang: LANG }), false);
   } catch (err) {
     console.error('Einstellungen konnten nicht gespeichert werden:', err);
   }
@@ -1647,8 +1647,8 @@ async function syncNow() {
   try {
     const payload = JSON.stringify(state);
     const googleOK = await googleSave(STORAGE_KEY, payload);
-    if (window.storage) {
-      try { await window.storage.set(STORAGE_KEY, payload, false); } catch (e) { console.warn('Local cloud storage save failed:', e); }
+    if (window.googleStorage) {
+      try { await window.googleStorage.set(STORAGE_KEY, payload, false); } catch (e) { console.warn('Local cloud storage save failed:', e); }
     }
     if (!googleOK) throw new Error('Google Sheets save failed');
     lastSyncedAt = new Date();
@@ -1685,8 +1685,8 @@ async function loadFromStorage() {
   }
   // Fallback to the original Claude storage.
   try {
-    if (window.storage) {
-      const result = await window.storage.get(STORAGE_KEY, false);
+    if (window.googleStorage) {
+      const result = await window.googleStorage.get(STORAGE_KEY, false);
       if (result && result.value) {
         const data = JSON.parse(result.value);
         if (data && Array.isArray(data.employees) && data.employees.length) return data;
@@ -2343,7 +2343,7 @@ document.getElementById('sd-clearCloudBtn').addEventListener('click', async () =
   const ok = await customConfirm(t('clearCloudConfirm'));
   if (!ok) return;
   try {
-    await window.storage.delete(STORAGE_KEY, false);
+    await window.googleStorage.delete(STORAGE_KEY, false);
     await customAlert(t('clearCloudDone'));
     setSyncStatus('idle');
   } catch (err) {
@@ -2861,7 +2861,7 @@ async function boot() {
   // Load the saved language before showing anything (including the lock
   // screen), so the passkey prompt itself appears in the right language.
   try {
-    const result = await window.storage.get(SETTINGS_KEY, false);
+    const result = await window.googleStorage.get(SETTINGS_KEY, false);
     if (result && result.value) {
       const s = JSON.parse(result.value);
       if (s.lang === 'de' || s.lang === 'en') LANG = s.lang;
@@ -3274,8 +3274,8 @@ function persist() {
   googleSave(googleKey, payload).then(function(ok) {
     if (ok) updateLastSaved();
   });
-  if (window.storage) {
-    window.storage.set(dataKeyFor(currentProfile), payload, false).then(function() {
+  if (window.googleStorage) {
+    window.googleStorage.set(dataKeyFor(currentProfile), payload, false).then(function() {
       updateLastSaved();
     }).catch(function(err) {
       console.error('Local cloud save failed:', err);
@@ -3358,12 +3358,12 @@ function applyLoadedData(data) {
 
 function migrateLegacyKeys() {
   var legacy = {};
-  return window.storage.get(LEGACY_KEYS.entries, false).then(function(r) { if (r && r.value) legacy.entries = JSON.parse(r.value); }).catch(function() {})
-    .then(function() { return window.storage.get(LEGACY_KEYS.title, false).then(function(r) { if (r && r.value) legacy.title = r.value; }).catch(function() {}); })
-    .then(function() { return window.storage.get(LEGACY_KEYS.subtitle, false).then(function(r) { if (r && r.value) legacy.subtitle = r.value; }).catch(function() {}); })
-    .then(function() { return window.storage.get(LEGACY_KEYS.currency, false).then(function(r) { if (r && r.value) legacy.currency = r.value; }).catch(function() {}); })
-    .then(function() { return window.storage.get(LEGACY_KEYS.categories, false).then(function(r) { if (r && r.value) legacy.categories = JSON.parse(r.value); }).catch(function() {}); })
-    .then(function() { return window.storage.get(LEGACY_KEYS.recurring, false).then(function(r) { if (r && r.value) legacy.recurring = JSON.parse(r.value); }).catch(function() {}); })
+  return window.googleStorage.get(LEGACY_KEYS.entries, false).then(function(r) { if (r && r.value) legacy.entries = JSON.parse(r.value); }).catch(function() {})
+    .then(function() { return window.googleStorage.get(LEGACY_KEYS.title, false).then(function(r) { if (r && r.value) legacy.title = r.value; }).catch(function() {}); })
+    .then(function() { return window.googleStorage.get(LEGACY_KEYS.subtitle, false).then(function(r) { if (r && r.value) legacy.subtitle = r.value; }).catch(function() {}); })
+    .then(function() { return window.googleStorage.get(LEGACY_KEYS.currency, false).then(function(r) { if (r && r.value) legacy.currency = r.value; }).catch(function() {}); })
+    .then(function() { return window.googleStorage.get(LEGACY_KEYS.categories, false).then(function(r) { if (r && r.value) legacy.categories = JSON.parse(r.value); }).catch(function() {}); })
+    .then(function() { return window.googleStorage.get(LEGACY_KEYS.recurring, false).then(function(r) { if (r && r.value) legacy.recurring = JSON.parse(r.value); }).catch(function() {}); })
     .then(function() {
       if (Object.keys(legacy).length) {
         applyLoadedData(legacy);
@@ -3381,9 +3381,9 @@ async function load() {
       return;
     } catch (e) { console.warn('Invalid Google household data:', e); }
   }
-  if (window.storage) {
+  if (window.googleStorage) {
     try {
-      var r = await window.storage.get(dataKeyFor(currentProfile), false);
+      var r = await window.googleStorage.get(dataKeyFor(currentProfile), false);
       if (r && r.value) { applyLoadedData(JSON.parse(r.value)); finishLoad(); return; }
       if (currentProfile === 'Personal') await migrateLegacyKeys();
     } catch (e) {
@@ -3394,8 +3394,8 @@ async function load() {
 }
 
 function loadProfileList() {
-  if (!window.storage) return Promise.resolve(['Personal']);
-  return window.storage.get(PROFILE_LIST_KEY, false).then(function(r) {
+  if (!window.googleStorage) return Promise.resolve(['Personal']);
+  return window.googleStorage.get(PROFILE_LIST_KEY, false).then(function(r) {
     if (r && r.value) {
       try {
         var list = JSON.parse(r.value);
@@ -3407,8 +3407,8 @@ function loadProfileList() {
 }
 
 function saveProfileList(list) {
-  if (!window.storage) return;
-  window.storage.set(PROFILE_LIST_KEY, JSON.stringify(list), false).catch(function() {});
+  if (!window.googleStorage) return;
+  window.googleStorage.set(PROFILE_LIST_KEY, JSON.stringify(list), false).catch(function() {});
 }
 
 function populateProfileSelect(list) {
@@ -3422,7 +3422,7 @@ function switchProfile(name) {
   if (name === currentProfile) return;
   persist();
   currentProfile = name;
-  if (window.storage) window.storage.set(ACTIVE_PROFILE_KEY, currentProfile, false).catch(function() {});
+  if (window.googleStorage) window.googleStorage.set(ACTIVE_PROFILE_KEY, currentProfile, false).catch(function() {});
   entries = [];
   categories = ['Housing', 'Groceries', 'Utilities', 'Transport', 'Health', 'Entertainment', 'Salary', 'Other'];
   recurring = [];
@@ -3435,21 +3435,21 @@ function switchProfile(name) {
 }
 
 async function init() {
-  if (window.storage) {
+  if (window.googleStorage) {
     try {
-      var r = await window.storage.get(ACTIVE_PROFILE_KEY, false);
+      var r = await window.googleStorage.get(ACTIVE_PROFILE_KEY, false);
       if (r && r.value) currentProfile = r.value;
     } catch (e) {}
   }
-  var list = window.storage ? await loadProfileList() : ['Personal'];
+  var list = window.googleStorage ? await loadProfileList() : ['Personal'];
   if (list.indexOf(currentProfile) === -1) list.push(currentProfile);
   populateProfileSelect(list);
   await load();
 }
 
 function checkPasskeyThenInit() {
-  if (!window.storage) { init(); return; }
-  window.storage.get(PASSKEY_KEY, false).then(function(r) {
+  if (!window.googleStorage) { init(); return; }
+  window.googleStorage.get(PASSKEY_KEY, false).then(function(r) {
     if (r && r.value) {
       showLockScreen(r.value);
     } else {
@@ -3490,7 +3490,7 @@ function finishLoad() {
   populateYearSelect();
   renderRecurring();
   render();
-  if (window.storage) {
+  if (window.googleStorage) {
     updateLastSaved();
   } else {
     var mainEl = document.getElementById('hl-mainSyncStatus');
@@ -3502,7 +3502,7 @@ var titleEl = document.getElementById('hl-pageTitle');
 titleEl.addEventListener('blur', function() {
   var text = titleEl.textContent.trim() || 'Household ledger';
   titleEl.textContent = text;
-  if (window.storage) persist();
+  if (window.googleStorage) persist();
 });
 titleEl.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') { ev.preventDefault(); titleEl.blur(); } });
 
@@ -3510,7 +3510,7 @@ var subtitleEl = document.getElementById('hl-pageSubtitle');
 subtitleEl.addEventListener('blur', function() {
   var text = subtitleEl.textContent.trim() || 'Track what comes in and what goes out.';
   subtitleEl.textContent = text;
-  if (window.storage) persist();
+  if (window.googleStorage) persist();
 });
 subtitleEl.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') { ev.preventDefault(); subtitleEl.blur(); } });
 
@@ -3614,7 +3614,7 @@ document.getElementById('hl-settingsToggle').addEventListener('click', function(
 
 document.getElementById('hl-currencySelect').addEventListener('change', function(ev) {
   currency = ev.target.value;
-  if (window.storage) persist();
+  if (window.googleStorage) persist();
   render();
 });
 
@@ -3998,14 +3998,14 @@ document.getElementById('hl-renameProfileBtn').addEventListener('click', functio
         return;
       }
       var oldName = currentProfile;
-      window.storage.get(dataKeyFor(oldName), false).then(function(r) {
-        if (r && r.value) return window.storage.set(dataKeyFor(name), r.value, false);
+      window.googleStorage.get(dataKeyFor(oldName), false).then(function(r) {
+        if (r && r.value) return window.googleStorage.set(dataKeyFor(name), r.value, false);
       }).catch(function() {}).then(function() {
         var idx = list.indexOf(oldName);
         if (idx !== -1) list[idx] = name;
         saveProfileList(list);
         currentProfile = name;
-        if (window.storage) window.storage.set(ACTIVE_PROFILE_KEY, currentProfile, false).catch(function() {});
+        if (window.googleStorage) window.googleStorage.set(ACTIVE_PROFILE_KEY, currentProfile, false).catch(function() {});
         populateProfileSelect(list);
       });
     });
@@ -4027,7 +4027,7 @@ document.getElementById('hl-deleteProfileBtn').addEventListener('click', functio
       var idx = list.indexOf(toDelete);
       if (idx !== -1) list.splice(idx, 1);
       saveProfileList(list);
-      if (window.storage) window.storage.delete(dataKeyFor(toDelete), false).catch(function() {});
+      if (window.googleStorage) window.googleStorage.delete(dataKeyFor(toDelete), false).catch(function() {});
       switchProfile(list[0]);
       populateProfileSelect(list);
     });
@@ -4259,12 +4259,12 @@ document.getElementById('hl-setPasskeyBtn').addEventListener('click', function()
     statusEl.style.display = 'block';
     return;
   }
-  if (!window.storage) {
+  if (!window.googleStorage) {
     statusEl.textContent = 'Cloud storage isn\'t available here, so a passkey can\'t be saved.';
     statusEl.style.display = 'block';
     return;
   }
-  window.storage.set(PASSKEY_KEY, val, false).then(function() {
+  window.googleStorage.set(PASSKEY_KEY, val, false).then(function() {
     statusEl.style.color = 'var(--gold)';
     statusEl.textContent = 'Passkey set \u2014 you\'ll be asked for it next time this page opens.';
     statusEl.style.display = 'block';
@@ -4278,8 +4278,8 @@ document.getElementById('hl-setPasskeyBtn').addEventListener('click', function()
 
 document.getElementById('hl-removePasskeyBtn').addEventListener('click', function() {
   var statusEl = document.getElementById('hl-passkeyStatus');
-  if (!window.storage) return;
-  window.storage.delete(PASSKEY_KEY, false).then(function() {
+  if (!window.googleStorage) return;
+  window.googleStorage.delete(PASSKEY_KEY, false).then(function() {
     statusEl.style.color = 'var(--gold)';
     statusEl.textContent = 'Passkey removed \u2014 this page will open without one now.';
     statusEl.style.display = 'block';
