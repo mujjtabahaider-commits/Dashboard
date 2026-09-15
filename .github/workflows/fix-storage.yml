@@ -1,0 +1,30 @@
+name: Fix dashboard storage
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-storage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace window.storage with window.googleStorage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          s2 = s.replace('window.storage', 'window.googleStorage')
+          if s2 != s:
+              p.write_text(s2, encoding='utf-8')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Replace window.storage with window.googleStorage' && git push
