@@ -4,20 +4,147 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashboard</title>
-<style>html,body{margin:0;width:100%;height:100%;background:#101418;color:#fff;font-family:Arial,sans-serif}#status{padding:20px}</style>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#101418;color:#fff;font-family:Arial,sans-serif}
+#status{padding:20px}
+#cloudPanel{position:fixed;right:14px;bottom:14px;z-index:2147483647;width:290px;background:rgba(20,24,30,.96);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35);font:13px/1.4 Arial,sans-serif;display:none}
+#cloudPanel strong{font-size:14px}
+#cloudDot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#999;margin-right:7px}
+#cloudPanel .muted{opacity:.72;font-size:12px;margin-top:4px;word-break:break-word}
+#cloudPanel button{margin-top:9px;margin-right:6px;padding:7px 9px;border:0;border-radius:8px;cursor:pointer}
+#cloudPanel a{color:#8ab4ff;text-decoration:none}
+#cloudToggle{position:fixed;right:14px;bottom:14px;z-index:2147483646;background:#20262d;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:8px 12px;cursor:pointer;display:none;font:12px Arial,sans-serif}
+</style>
 </head>
 <body>
 <div id="status">Loading dashboard…</div>
 <script>
 (async function(){
+  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4p5JB4Q9TE0TpMwkRTP3NmydinuZ-mTQ92RisER7IMybas5lSOLpsyCUU87EB9QK-/exec';
+  const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1bPYhVuO-H2El_p-pW1buyvs4p0-Mws5gd7OviDHrrGo/edit';
+  const INFO_KEY = '__cloud_info__';
+  let lastCloudSave = null;
+
+  function setCloudStatus(ok, text){
+    const dot = document.getElementById('cloudDot');
+    const state = document.getElementById('cloudState');
+    if(dot) dot.style.background = ok ? '#35c759' : '#ff9f0a';
+    if(state) state.textContent = text;
+  }
+  function showCloudPanel(){
+    const p=document.getElementById('cloudPanel');
+    const t=document.getElementById('cloudToggle');
+    if(p){p.style.display='block';}
+    if(t){t.style.display='none';}
+  }
+  function hideCloudPanel(){
+    const p=document.getElementById('cloudPanel');
+    const t=document.getElementById('cloudToggle');
+    if(p){p.style.display='none';}
+    if(t){t.style.display='block';}
+  }
+  function updateLastSave(){
+    const el=document.getElementById('cloudLastSave');
+    if(el && lastCloudSave) el.textContent='Last cloud save: '+new Date(lastCloudSave).toLocaleString();
+  }
+
+  // Google-backed replacement for the dashboard's existing window.storage API.
+  // This lets the existing dashboard continue using its current save/load code.
+  window.storage = {
+    async get(key) {
+      const r = await fetch(GOOGLE_SCRIPT_URL + '?key=' + encodeURIComponent(key) + '&t=' + Date.now(), {cache:'no-store'});
+      if(!r.ok) throw new Error('Google cloud read failed ('+r.status+')');
+      const j = await r.json();
+      if (key === INFO_KEY) return j;
+      if (j && j.found && j.data !== '__DELETED__') return {value:j.data};
+      return null;
+    },
+    async set(key, value) {
+      const r = await fetch(GOOGLE_SCRIPT_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({key:key,data:value})
+      });
+      if(!r.ok) throw new Error('Google cloud save failed ('+r.status+')');
+      const j=await r.json();
+      if(!j || j.success !== true) throw new Error((j && j.error) || 'Google cloud save failed');
+      lastCloudSave=Date.now();
+      setCloudStatus(true,'Connected — saving to Google Sheets');
+      updateLastSave();
+      return {success:true};
+    },
+    async delete(key) {
+      const r = await fetch(GOOGLE_SCRIPT_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({key:key,delete:true})
+      });
+      if(!r.ok) throw new Error('Google cloud delete failed ('+r.status+')');
+      const j=await r.json();
+      if(!j || j.success !== true) throw new Error((j && j.error) || 'Google cloud delete failed');
+      lastCloudSave=Date.now();
+      updateLastSave();
+      return {success:true};
+    }
+  };
+
+  window.dashboardCloudInfo = {
+    provider:'Google Apps Script + Google Sheets',
+    sheetUrl:GOOGLE_SHEET_URL,
+    scriptUrl:GOOGLE_SCRIPT_URL
+  };
+
   try {
-    const r = await fetch('./index.html.html', {cache:'no-store'});
+    const r = await fetch('./index.html.html?cb=' + Date.now(), {cache:'no-store'});
     if(!r.ok) throw new Error('Dashboard file could not be loaded');
     let html = await r.text();
-    html = html.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'"\s]+\/exec/g, 'https://script.google.com/macros/s/AKfycbz4p5JB4Q9TE0TpMwkRTP3NmydinuZ-mTQ92RisER7IMybas5lSOLpsyCUU87EB9QK-/exec');
+    html = html.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'"\s]+\/exec/g, GOOGLE_SCRIPT_URL);
+
+    // Add the cloud-status panel inside the loaded dashboard document.
+    const cloudHtml = `
+<div id="cloudPanel">
+  <div><span id="cloudDot"></span><strong>Google Cloud Storage</strong></div>
+  <div id="cloudState" class="muted">Checking connection…</div>
+  <div id="cloudEmail" class="muted">Google account: checking…</div>
+  <div class="muted">Storage: Google Sheets</div>
+  <div id="cloudLastSave" class="muted">Last cloud save: —</div>
+  <div>
+    <a href="${GOOGLE_SHEET_URL}" target="_blank" rel="noopener">Open Google Sheet</a>
+    <button id="cloudTest">Test connection</button>
+    <button id="cloudClose">Close</button>
+  </div>
+</div>
+<button id="cloudToggle">☁ Google Cloud</button>`;
+    html = html.replace('</body>', cloudHtml + '</body>');
+
     document.open();
     document.write(html);
     document.close();
+
+    setTimeout(async function(){
+      showCloudPanel();
+      const close=document.getElementById('cloudClose');
+      const toggle=document.getElementById('cloudToggle');
+      const test=document.getElementById('cloudTest');
+      if(close) close.onclick=hideCloudPanel;
+      if(toggle) toggle.onclick=showCloudPanel;
+      async function testConnection(){
+        setCloudStatus(false,'Checking connection…');
+        try{
+          const info=await window.storage.get(INFO_KEY);
+          const email=(info && info.email) ? info.email : 'Not available yet';
+          const emailEl=document.getElementById('cloudEmail');
+          if(emailEl) emailEl.textContent='Google account: '+email;
+          setCloudStatus(true,'Connected — Google Sheets is available');
+        }catch(e){
+          setCloudStatus(false,'Connection error: '+e.message);
+          const emailEl=document.getElementById('cloudEmail');
+          if(emailEl) emailEl.textContent='Google account: unavailable';
+        }
+      }
+      if(test) test.onclick=testConnection;
+      await testConnection();
+    },500);
   } catch(e) {
     document.getElementById('status').textContent='Dashboard could not be loaded: '+e.message;
   }
