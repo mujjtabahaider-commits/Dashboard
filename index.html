@@ -1,6 +1,42 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<script>
+window.GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4p5JB4Q9TE0TpMwkRTP3NmydinuZ-mTQ92RisER7IMybas5lSOLpsyCUU87EB9QK-/exec';
+window.GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1bPYhVuO-H2El_p-pW1buyvs4p0-Mws5gd7OviDHrrGo/edit';
+window.googleStorage = {
+  async get(key) {
+    const r = await fetch(window.GOOGLE_SCRIPT_URL + '?key=' + encodeURIComponent(key) + '&t=' + Date.now(), {cache:'no-store'});
+    if (!r.ok) throw new Error('Google cloud read failed (' + r.status + ')');
+    const j = await r.json();
+    if (j && j.found && j.data !== '__DELETED__') return {value:j.data};
+    return null;
+  },
+  async set(key, value) {
+    const r = await fetch(window.GOOGLE_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({key:key,data:value})
+    });
+    if (!r.ok) throw new Error('Google cloud save failed (' + r.status + ')');
+    const j = await r.json();
+    if (!j || j.success !== true) throw new Error((j && j.error) || 'Google cloud save failed');
+    return {success:true};
+  },
+  async delete(key) {
+    const r = await fetch(window.GOOGLE_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({key:key,delete:true})
+    });
+    if (!r.ok) throw new Error('Google cloud delete failed (' + r.status + ')');
+    const j = await r.json();
+    if (!j || j.success !== true) throw new Error((j && j.error) || 'Google cloud delete failed');
+    return {success:true};
+  }
+};
+window.dashboardCloudInfo = {provider:'Google Apps Script + Google Sheets', sheetUrl:window.GOOGLE_SHEET_URL, scriptUrl:window.GOOGLE_SCRIPT_URL};
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title id="hubPageTitle">Dashboards</title>
